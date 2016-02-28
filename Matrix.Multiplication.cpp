@@ -1,4 +1,4 @@
-// Matrix Multiplication.cpp : ¶¨Òå¿ØÖÆÌ¨Ó¦ÓÃ³ÌĞòµÄÈë¿Úµã¡£
+// Matrix Multiplication.cpp : å®šä¹‰æ§åˆ¶å°åº”ç”¨ç¨‹åºçš„å…¥å£ç‚¹ã€‚
 /*
 Description:
 Given two matrices A and B with size m * n and n * p respectively (1 <= m, n , p <= 50), 
@@ -51,13 +51,13 @@ typedef struct{
 	int height;
 }matrice;
 
-matrice *CreateM(int width, int height)
+matrice *CreateM(int height, int width)
 {
 	matrice *_matrice;
 	_matrice = (matrice *)malloc(sizeof(matrice));
 	_matrice->data = (int *)malloc(width * height * sizeof(int));
-	_matrice->width = width;
 	_matrice->height = height;
+	_matrice->width = width;
 	return _matrice;
 }
 
@@ -113,8 +113,6 @@ int main()
 	scanf("%d", &width), scanf("%d", &height);
 	matrice* m2 = CreateM(width, height);
 	ScanfAll(m2);
-
-	PrintAll(m1), PrintAll(m2);
 
 	if (m2->height == m1->width)
 	{
