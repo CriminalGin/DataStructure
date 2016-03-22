@@ -22,9 +22,11 @@ teacher(s).
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #define MAXNUM 400
 #define PRECEDENCELEN 9
+#define TESTNUM 4
 
 typedef enum{ FALSE = 0, TRUE = 1 } Boolean;
 
@@ -33,8 +35,6 @@ typedef enum{ lparen, rparen, plus, minus, times, divide, eos, operand, space } 
 int isp[] = { 0, 19, 12, 12, 13, 13, 0 };
 int icp[] = { 20, 19, 12, 12, 13, 13, 0 };
 
-char *expr = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars for an infix expression
-char *post = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars after postfix
 
 
 typedef struct{
@@ -51,8 +51,8 @@ stack *createS(int size, char *type){
 	if (strcmp(type, "precedence") == 0){
 		s->stack = (void*)malloc(size * sizeof(precedence));
 	}
-	else if (strcmp(type, "int") == 0){
-		s->stack = (void*)malloc(size * sizeof(int));
+	else if (strcmp(type, "double") == 0){
+		s->stack = (void*)malloc(size * sizeof(double));
 	}
 	return s;
 }
@@ -77,45 +77,45 @@ void pushPrecedence(stack *s, precedence e){
 	}
 }
 
-void pushInt(stack *s, int e){
+void pushDouble(stack *s, double e){
 	if (IsFull(s) == FALSE)
 	{
 		++s->top;
-		int *tmp = (int *)s->stack;
+		double *tmp = (double *)s->stack;
 		tmp[s->top] = e;
 	}
 }
 
-int pop(stack *s){
+precedence popPrecedence(stack *s){
 	if (IsEmpty(s) == FALSE)
 	{
-		int *tmp = (int *)s->stack;
-		int _tmp = tmp[s->top--];
+		precedence *tmp = (precedence *)s->stack;
+		precedence _tmp = tmp[s->top--];
 		return _tmp;
-#if 0
-		if (strcmp(type, "precedence") == 0){
-			precedence *tmp = (precedence *)s->stack;
-			return (int)tmp[s->top--];
-		}
-		else if (strcmp(type, "int") == 0){
-			precedence *tmp = (precedence *)s->stack;
-			return tmp[s->top--];
-		}
-#endif
+	}		
+}
+
+double popDouble(stack *s){
+	if (IsEmpty(s) == FALSE){
+		double *tmp = (double *)s->stack;
+		double _tmp = tmp[s->top--];
+		return _tmp;
+	}	
+}
+
+double topDouble(stack *s){
+	if (IsEmpty(s) == FALSE)
+	{
+			double *tmp = (double *)s->stack;
+			return tmp[s->top];
 	}
 }
 
-int top(stack *s, char *type){
+precedence topPrecedence(stack *s){
 	if (IsEmpty(s) == FALSE)
 	{
-		if (strcmp(type, "precedence") == 0){
-			precedence *tmp = (precedence *)s->stack;
-			return tmp[s->top];
-		}
-		else if (strcmp(type, "int") == 0){
-			int *tmp = (int *)s->stack;
-			return tmp[s->top];
-		}
+		precedence *tmp = (precedence *)s->stack;
+		return tmp[s->top];
 	}
 }
 
@@ -166,7 +166,7 @@ char printToken(precedence token){
 	}
 }
 
-void postfix(){
+void postfix(char *expr, char *post){
 	char symbol;
 	precedence token;
 	int n = 0;
@@ -194,53 +194,75 @@ void postfix(){
 		if (token == operand){ post[postPosition++] = printSymbol(symbol); }
 		else if (token == space);
 		else if (token == rparen){
-			while (top(s, "precedence") != lparen){ post[postPosition++] = printToken((precedence)pop(s)); }
-			(precedence)pop(s);		// discard the left parameters
+			while (topPrecedence(s) != lparen){ post[postPosition++] = printToken(popPrecedence(s)); }
+			popPrecedence(s);		// discard the left parameters
 		}
 		else{
-			while (isp[top(s, "precedence")] >= icp[token]){ post[postPosition++] = printToken((precedence)pop(s)); }
+			while (isp[topPrecedence(s)] >= icp[token]){ post[postPosition++] = printToken(popPrecedence(s)); }
 			pushPrecedence(s, token);
 		}
 	}
-	while ((token = (precedence)pop(s)) != eos){ post[postPosition++] = printToken(token); }
+	while ((token = popPrecedence(s)) != eos){ post[postPosition++] = printToken(token); }
 	post[postPosition++] = '\0';
 	postPosition = 0;
 }
 
-int eval(void){
-	precedence token; char symbol; stack *s; int op1, op2;
+double eval(char *post){
+	precedence token; char symbol; stack *s; double op1, op2;
 	int n = 0;	// counter for the expression string expr*
-	s = createS(MAXNUM, "int");
+	s = createS(MAXNUM, "double");
 	token = getToken(post, &symbol, &n);
-	while (token != eos){	// char conversion to int
-		if (token == operand){ op1 = symbol - '0'; pushInt(s, op1); }
+       	while (token != eos){	// char conversion to int
+		if (token == operand){ op1 = symbol - '0'; pushDouble(s, op1); }
 		else{
-			op2 = pop(s); op1 = pop(s);
+			op2 = popDouble(s); op1 = popDouble(s);
 			switch (token){
-			case plus: pushInt(s, op1 + op2); break;
-			case minus: pushInt(s, op1 - op2); break;
-			case times: pushInt(s, op1 * op2); break;
-			case divide: pushInt(s, op1 / op2); break;
+			case plus: pushDouble(s, op1 + op2); break;
+			case minus: pushDouble(s, op1 - op2); break;
+			case times: pushDouble(s, op1 * op2); break;
+			case divide: pushDouble(s, op1 / op2); break;
 			}
 		}
 		token = getToken(post, &symbol, &n);
 	}
-	int tmp;
-	tmp = (int)pop(s);	
+	double tmp;
+	tmp = popDouble(s);
 	return tmp;	// return result
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	char *test[8];
+	char *test[TESTNUM];
+	double answer[TESTNUM];
+	double error;
+	double result;
 	int i = 0;
-	for (i = 0; i < 8; ++i){
+	for (i = 0; i < TESTNUM; ++i){
 		test[i] = (char *)malloc(sizeof(char) * MAXNUM);
+
 	}
 	strcpy(test[0], "1+2-3/4/5*6+7");
-	strcpy(expr, test[0]);
-	postfix();
-	printf("\nresult is %d\n", eval());
+	answer[0] = 9.1;
+	strcpy(test[1], "1 + (2 - 3 / (4 / 5)) * 6 + 7");
+	// strcpy(test[1], "1+(2-3/(4/5))*6+7");
+	answer[1] = -2.5;
+	strcpy(test[2], "441.43+(32.30-3.0/(0.4/9.5))*6.0+123.7");
+	answer[2] = 331.43;
+	strcpy(test[3], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7");
+	answer[3] = -798.83;
+	
+	
+
+	for (i = 0; i < TESTNUM; ++i){
+		char *expr = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars for an infix expression
+		char *post = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars after postfix
+		strcpy(expr, test[i]);
+		postfix(expr, post);
+		result = eval(post);
+		if ((error = abs((result - answer[i]) / answer[i])) < 1e-9){ printf("Test %d is right.\n"); }
+		else{ printf("Result is %lf, answer is %lf, error is %lf\n", result, answer[i], error); }
+		free(expr); free(post);
+	}
 	system("PAUSE");
 	return 0;
 }
