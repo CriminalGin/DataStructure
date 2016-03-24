@@ -132,13 +132,40 @@ precedence topPrecedence(stack *s){
 	}
 }
 
-precedence getToken(char *expr, char *symbol, int *n){
+precedence getTokenPostfix(char *expr, char *symbol, int *n){
+	
 	*symbol = expr[(*n)++];
 	switch (*symbol){
 	case '(': return lparen;
 	case ')': return rparen;
 	case '+': return plus;
 	case '-': return minus;
+	case '*': return times;
+	case '/': return divide;
+	case '1': case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':case '0':
+		return operand;
+	case ' ': return space;
+	case '\0': return eos;
+	case '.': return dot;
+	default: return operand;
+	}
+}
+
+precedence getTokenEval(char *expr, char *symbol, int *n){
+
+	*symbol = expr[(*n)++];
+	int *tmp = (int*)malloc(sizeof(int));
+	*tmp = *n;
+	switch (*symbol){
+	case '(': return lparen;
+	case ')': return rparen;
+	case '+': return plus;
+	case '-': 
+		if (expr[*tmp] == '0' || expr[*tmp] == '1' || expr[*tmp] == '2' || expr[*tmp] == '3'\
+			|| expr[*tmp] == '4' || expr[*tmp] == '5' || expr[*tmp] == '6' || expr[*tmp] == '7'\
+			|| expr[*tmp] == '8' || expr[*tmp] == '9'){
+			return operand;}
+		else{ return minus; }
 	case '*': return times;
 	case '/': return divide;
 	case '1': case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':case '0':
@@ -215,29 +242,42 @@ void postfix(char *tmp, post *p){
 	char *expr = removeMinus(tmp2);
 	char symbol; precedence token; int n = 0; stack *s = createS(strlen(expr), "precedence");
 	pushPrecedence(s, eos);
-	token = getToken(expr, &symbol, &n);
+	token = getTokenPostfix(expr, &symbol, &n);
 	while (token != eos){
 		int k = 0; int nMinus2 = n - 2; 
 		if ((token == operand) || (token == dot)){
 			while ((token == operand) || (token == dot)){
 				p->element[p->size][k++] = printSymbol(symbol);
-				token = getToken(expr, &symbol, &n);				
+				token = getTokenPostfix(expr, &symbol, &n);
 				if (token == eos){ break; }
 			} p->element[p->size++][k++] = '\0'; k = 0;
 		}
-		else if (token == space){ token = getToken(expr, &symbol, &n); }
+		else if (token == space){ token = getTokenPostfix(expr, &symbol, &n); }
 		else if (token == rparen){
 			while (topPrecedence(s) != lparen){ 
 				p->element[p->size][0] = printToken(popPrecedence(s)); 
 				p->element[p->size++][1] = '\0';
 			}
 			popPrecedence(s);		// discard the left parameters
-			token = getToken(expr, &symbol, &n);
+			token = getTokenPostfix(expr, &symbol, &n);
 		}
+#if 0
 		else if ((token == minus) && (getToken(expr, &symbol, &nMinus2) != operand)){
 			while ((token == operand) || (token == dot)){
 				p->element[p->size][k++] = printSymbol(symbol);
 				token = getToken(expr, &symbol, &n);
+			} p->element[p->size++][k++] = '\0'; k = 0;
+		}
+#endif
+		else if ((token == minus) && (expr[n - 2] != '0') && (expr[n - 2] != '1') && (expr[n - 2] != '2')\
+			&& (expr[n - 2] != '3') && (expr[n - 2] != '4') && (expr[n - 2] != '5') && (expr[n - 2] != '6')\
+			&& (expr[n - 2] != '7') && (expr[n - 2] != '8') && (expr[n - 2] != '9') && (expr[n - 2] != ')')){
+			p->element[p->size][k++] = printSymbol(symbol);
+			token = getTokenPostfix(expr, &symbol, &n);
+			while ((token == operand) || (token == dot)){
+				p->element[p->size][k++] = printSymbol(symbol);
+				token = getTokenPostfix(expr, &symbol, &n);
+				if (token == eos){ break; }
 			} p->element[p->size++][k++] = '\0'; k = 0;
 		}
 		else{
@@ -245,9 +285,8 @@ void postfix(char *tmp, post *p){
 				p->element[p->size][0] = printToken(popPrecedence(s)); 
 				p->element[p->size++][1] = '\0';
 			}
-
 			pushPrecedence(s, token);
-			token = getToken(expr, &symbol, &n);
+			token = getTokenPostfix(expr, &symbol, &n);
 		}
 	}
 	while ((token = popPrecedence(s)) != eos){ 
@@ -261,7 +300,7 @@ double eval(post *p){
 	precedence token; char symbol; stack *s; double op1, op2; int n = 0;	// counter for the expression string expr*
 	s = createS(MAXNUM, "double");
 	int initSize = p->size; char *charNum = p->element[initSize - (p->size)];
-	token = getToken(p->element[initSize - (p->size--)], &symbol, &n); n = 0;
+	token = getTokenEval(p->element[initSize - (p->size--)], &symbol, &n); n = 0;
        	while (token != eos){	// char conversion to int
 			if (token == operand){ 
 				op1 = atof(charNum); pushDouble(s, op1); 
@@ -277,7 +316,7 @@ double eval(post *p){
 			}
 			free(charNum);
 			char *charNum = (char *)malloc(sizeof(char) * MAXNUM); strcpy(charNum, p->element[initSize - (p->size)]);
-			token = getToken(p->element[initSize - (p->size--)], &symbol, &n); n = 0;
+			token = getTokenEval(p->element[initSize - (p->size--)], &symbol, &n); n = 0;
 	}
 	double tmp = popDouble(s);
 	return tmp;	// return result
@@ -306,19 +345,21 @@ int *findNegative(char *string){
 	return NULL;
 }
 
-
 int _tmain(int argc, _TCHAR* argv[])
 {
 	char *test[TESTNUM];
 	double answer[TESTNUM], error, result; int i = 0;
+	printf("%f\n", log(1.0));
 	for (i = 0; i < TESTNUM; ++i){
 		test[i] = (char *)malloc(sizeof(char) * MAXNUM);
 	}
 	strcpy(test[0], "1+2-3/4/5*6+7"); answer[0] = 9.1;
 	strcpy(test[1], "1 + (2 - 3 / (4 / 5)) * 6 + 7"); answer[1] = -2.5;
 	strcpy(test[2], "441.43+(32.30-3.0/(0.4/9.5))*6.0+123.7"); answer[2] = 331.43;
-	strcpy(test[3], "---1"); answer[3] = -1;
-	strcpy(test[4], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7"); answer[4] = -798.83;
+	strcpy(test[3], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7"); answer[3] = -798.83;
+	strcpy(test[4], "---1"); answer[4] = -1;
+	strcpy(test[4], "-log(log(441.43))+(-32.30-3.0/(0.4/log(-log(0.01))))*-6.0+-123.7"); answer[4] = 83.2239468134;
+
 	for (i = 0; i < TESTNUM; ++i){
 		char *expr = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars for an infix expression
 		// char *post = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars after postfix
