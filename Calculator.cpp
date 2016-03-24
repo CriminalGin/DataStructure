@@ -26,7 +26,7 @@ teacher(s).
 
 #define MAXNUM 400
 #define PRECEDENCELEN 10
-#define TESTNUM 4
+#define TESTNUM 5
 
 typedef enum{ FALSE = 0, TRUE = 1 } Boolean;
 
@@ -180,48 +180,74 @@ char printToken(precedence token){
 	}
 }
 
-void postfix(char *expr, post *p){
-	char symbol; precedence token; int n = 0; stack *s = createS(MAXNUM, "precedence");
-	pushPrecedence(s, eos);
-#if 0
-	for (token = getToken(&symbol, &n); token != eos;  token = getToken(&symbol, &n)){
-		if (token == operand){ printSymbol(symbol); }
-		else if (token == space);
-		else if (token == rparen){
-			while (top(s) != lparen){ printToken((precedence)pop(s)); }
-			(precedence)pop(s);		// discard the left parameters
+char *compact(char *string){
+	char *_compact = (char *)malloc(sizeof(char) * MAXNUM);
+	int i = 0, j = 0;
+	for (i = 0; i < MAXNUM; ++i){
+		if (string[i] != ' '){ _compact[j++] = string[i]; }
+	}
+	_compact[j++] = '\0';
+	return _compact;
+}
+
+char *removeMinus(char *string){
+	int i = 0, strLength = strlen(string);
+	char *result = (char *)malloc(sizeof(char) * strLength);
+	int k = 0;
+	for (i = 0; i < strLength;){
+		if (string[i] == '-'){
+			int count = 1;
+			while (string[++i] == '-'){ ++count; }
+			if ((count % 2) == 0){ }
+			else{ result[k] = '-'; ++k; }
 		}
 		else{
-			while (isp[(precedence)top(s)] >= icp[token]){ printToken((precedence)pop(s)); }
-			pushPrecedence(s, token);
+			result[k] = string[i];
+			++i, ++k;
 		}
 	}
-	while ((token = (precedence)pop(s)) != eos){ printToken(token); }
-#endif
-	int postPosition = 0;
-	for (token = getToken(expr, &symbol, &n); token != eos; token = getToken(expr, &symbol, &n)){
-		int k = 0;
+	result[k] = '\0';
+	return result;
+}
+
+void postfix(char *tmp, post *p){
+	char *tmp2 = compact(tmp);
+	char *expr = removeMinus(tmp2);
+	char symbol; precedence token; int n = 0; stack *s = createS(strlen(expr), "precedence");
+	pushPrecedence(s, eos);
+	token = getToken(expr, &symbol, &n);
+	while (token != eos){
+		int k = 0; int nMinus2 = n - 2; 
 		if ((token == operand) || (token == dot)){
 			while ((token == operand) || (token == dot)){
 				p->element[p->size][k++] = printSymbol(symbol);
-				token = getToken(expr, &symbol, &n);
+				token = getToken(expr, &symbol, &n);				
+				if (token == eos){ break; }
 			} p->element[p->size++][k++] = '\0'; k = 0;
 		}
-		if (token == space);
+		else if (token == space){ token = getToken(expr, &symbol, &n); }
 		else if (token == rparen){
 			while (topPrecedence(s) != lparen){ 
 				p->element[p->size][0] = printToken(popPrecedence(s)); 
 				p->element[p->size++][1] = '\0';
 			}
 			popPrecedence(s);		// discard the left parameters
+			token = getToken(expr, &symbol, &n);
 		}
-		else if (token == eos){ break; }
+		else if ((token == minus) && (getToken(expr, &symbol, &nMinus2) != operand)){
+			while ((token == operand) || (token == dot)){
+				p->element[p->size][k++] = printSymbol(symbol);
+				token = getToken(expr, &symbol, &n);
+			} p->element[p->size++][k++] = '\0'; k = 0;
+		}
 		else{
 			while (isp[topPrecedence(s)] >= icp[token]){ 
 				p->element[p->size][0] = printToken(popPrecedence(s)); 
 				p->element[p->size++][1] = '\0';
 			}
+
 			pushPrecedence(s, token);
+			token = getToken(expr, &symbol, &n);
 		}
 	}
 	while ((token = popPrecedence(s)) != eos){ 
@@ -229,8 +255,6 @@ void postfix(char *expr, post *p){
 		p->element[p->size++][1] = '\0';
 	}
 	p->element[p->size++][0] = '\0';
-
-	// postPosition = 0;
 }
 
 double eval(post *p){
@@ -259,24 +283,13 @@ double eval(post *p){
 	return tmp;	// return result
 }
 
-char *compact(char *string){
-	char *_compact = (char *)malloc(sizeof(char) * MAXNUM);
-	int i = 0, j = 0;
-	for (i = 0; i < MAXNUM; ++i){
-		if (string[i] != ' '){ _compact[j++] = string[i]; }
-	}
-	return _compact;
-}
-
 int *findNegative(char *string){
 	int *position = (int *)malloc(sizeof(int) * MAXNUM);
-	char *_compact = compact(string);
-	printf("compact is %s\n", _compact);
 	int i, j = 0;
-	if (strcmp(_compact, "-")){
-		for (i = 0; i < strlen(_compact); ++i){
-			if (_compact[i] == '-'){
-				switch (_compact[i + 1]){
+	if (strcmp(string, "-")){
+		for (i = 0; i < strlen(string); ++i){
+			if (string[i] == '-'){
+				switch (string[i + 1]){
 				case '0': case '1': case '2': case '3': case '4': 
 				case '5': case '6': case '7': case '8': case '9':
 					position[j++] = i;
@@ -304,21 +317,20 @@ int _tmain(int argc, _TCHAR* argv[])
 	strcpy(test[0], "1+2-3/4/5*6+7"); answer[0] = 9.1;
 	strcpy(test[1], "1 + (2 - 3 / (4 / 5)) * 6 + 7"); answer[1] = -2.5;
 	strcpy(test[2], "441.43+(32.30-3.0/(0.4/9.5))*6.0+123.7"); answer[2] = 331.43;
-	strcpy(test[3], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7"); answer[3] = -798.83;
-	int *tmp = findNegative(test[3]);
-	printf("%d\n", tmp[0]);
-
+	strcpy(test[3], "---1"); answer[3] = -1;
+	strcpy(test[4], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7"); answer[4] = -798.83;
 	for (i = 0; i < TESTNUM; ++i){
 		char *expr = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars for an infix expression
 		// char *post = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars after postfix
-		post *p = createP(); strcpy(expr, test[i]);
+		post *p = createP(); strcpy(expr, test[i]); 
+		postfix(expr, p);
 		int j = 0;
 		for (j = 0; j < p->size; ++j){
 			printf("%s", p->element[j]);
 		}printf("\n");
 		result = eval(p);
-		if ((error = abs((result - answer[i]) / answer[i])) < 1e-9){ printf("Test %d is right.\n"); }
-		else{ printf("Result is %lf, answer is %lf, error is %lf\n", result, answer[i], error); }
+		if ((error = abs((result - answer[i]) / answer[i])) < 1e-9){ printf("Test %d is right.\n", i); }
+		else{ printf("Result is %.10f, answer is %.10f, error is %.10f\n", result, answer[i], error); }
 		free(expr); free(p->element);
 	}
 	system("PAUSE");
