@@ -219,7 +219,7 @@ char *printToken(precedence token){
 	case minus: return "-\0";
 	case times: return "*\0";
 	case divide: return "/\0";
-	case lg: return "log\0";
+	case lg: return "l\0";	// "l" represents "log"
 	default: break;
 	}
 }
@@ -300,16 +300,23 @@ void postfix(char *tmp, post *p){
 			} p->element[p->size++][k++] = '\0'; k = 0;
 		}
 		else if ((token == lg)){
+			while (isp[topPrecedence(s)] >= icp[token]){
+				while (strcpy(p->element[p->size], printToken(popPrecedence(s))) == NULL);
+				++p->size;
+			}
+			pushPrecedence(s, token);
+			++n;
+			++n;
+			token = getTokenPostfix(expr, &symbol, &n);
+#if 0
 			p->element[p->size][k++] = printSymbol(symbol);
 			while (k < 3){
 				token = getTokenPostfix(expr, &symbol, &n);
 				p->element[p->size][k++] = printSymbol(symbol);
 			}
-			while ((token == operand) || (token == dot)){
-				p->element[p->size][k++] = printSymbol(symbol);
-				token = getTokenPostfix(expr, &symbol, &n);
-				if (token == eos){ break; }
-			} p->element[p->size++][k++] = '\0'; k = 0;
+			pushPrecedence(s, token);
+			p->element[p->size++][k++] = '\0'; k = 0;
+#endif
 		}
 		else{
 			while (isp[topPrecedence(s)] >= icp[token]){
@@ -398,7 +405,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	strcpy(test[2], "441.43+(32.30-3.0/(0.4/9.5))*6.0+123.7"); answer[2] = 331.43;
 	strcpy(test[3], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7"); answer[3] = -798.83;
 	strcpy(test[4], "---1"); answer[4] = -1;
-	strcpy(test[5], "-log(log(441.43))+(-32.30-3.0/(0.4/log(-log(0.01))))*-6.0+-123.7"); answer[5] = 83.2239468134;
+	// strcpy(test[5], "-log(log(441.43))+(-32.30-3.0/(0.4/log(-log(0.01))))*-6.0+-123.7"); answer[5] = 83.2239468134;
+	strcpy(test[5], "log(log(441.43))+(-32.30-3.0/(0.4/log(log(100))))*-6.0+-123.7"); answer[5] = 83.2239468134;
+	// strcpy(test[5], "log(10)"); answer[5] = 83.2239468134;
 
 	for (i = 0; i < TESTNUM; ++i){
 		char *expr = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars for an infix expression
