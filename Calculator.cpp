@@ -26,14 +26,14 @@ teacher(s).
 
 #define MAXNUM 400
 #define PRECEDENCELEN 10
-#define TESTNUM 5
+#define TESTNUM 6
 
 typedef enum{ FALSE = 0, TRUE = 1 } Boolean;
 
-typedef enum{ lparen, rparen, plus, minus, times, divide, eos, operand, space, dot } precedence;
+typedef enum{ lparen, rparen, plus, minus, times, divide, eos, lg, operand, space, dot } precedence;
 
-int isp[] = { 0, 19, 12, 12, 13, 13, 0 };
-int icp[] = { 20, 19, 12, 12, 13, 13, 0 };
+int isp[] = { 0, 19, 12, 12, 13, 13, 0, 14 };
+int icp[] = { 20, 19, 12, 12, 13, 13, 0, 14 };
 
 typedef struct{
 	int size;
@@ -47,8 +47,7 @@ typedef struct{
 }post;
 
 post *createP(){
-	post *p;
-	p = (post*)malloc(sizeof(post));
+	post *p; p = (post*)malloc(sizeof(post));
 	p->element = (char **)malloc(sizeof(char*) * MAXNUM);
 	int i;
 	for (i = 0; i < MAXNUM; ++i){ p->element[i] = (char *)malloc(sizeof(char) * MAXNUM); }
@@ -147,6 +146,7 @@ precedence getTokenPostfix(char *expr, char *symbol, int *n){
 	case ' ': return space;
 	case '\0': return eos;
 	case '.': return dot;
+	case 'l': return lg;
 	default: return operand;
 	}
 }
@@ -173,6 +173,7 @@ precedence getTokenEval(char *expr, char *symbol, int *n){
 	case ' ': return space;
 	case '\0': return eos;
 	case '.': return dot;
+	case 'l': return lg;
 	default: return operand;
 	}
 }
@@ -195,6 +196,7 @@ void printToken(precedence token){
 }
 #endif
 
+#if 0
 char printToken(precedence token){
 	switch (token){
 	case lparen: return '('; 
@@ -202,7 +204,22 @@ char printToken(precedence token){
 	case plus: return '+'; 
 	case minus: return '-'; 
 	case times: return '*'; 
-	case divide: return '/'; 
+	case divide: return '/';
+	case lg: return;
+	default: break;
+	}
+}
+#endif
+
+char *printToken(precedence token){
+	switch (token){
+	case lparen: return "(\0";
+	case rparen: return ")\0";
+	case plus: return "+\0";
+	case minus: return "-\0";
+	case times: return "*\0";
+	case divide: return "/\0";
+	case lg: return "log\0";
 	default: break;
 	}
 }
@@ -243,6 +260,7 @@ void postfix(char *tmp, post *p){
 	char symbol; precedence token; int n = 0; stack *s = createS(strlen(expr), "precedence");
 	pushPrecedence(s, eos);
 	token = getTokenPostfix(expr, &symbol, &n);
+	precedence savePopPrecedence;
 	while (token != eos){
 		int k = 0; int nMinus2 = n - 2; 
 		if ((token == operand) || (token == dot)){
@@ -254,9 +272,10 @@ void postfix(char *tmp, post *p){
 		}
 		else if (token == space){ token = getTokenPostfix(expr, &symbol, &n); }
 		else if (token == rparen){
-			while (topPrecedence(s) != lparen){ 
-				p->element[p->size][0] = printToken(popPrecedence(s)); 
-				p->element[p->size++][1] = '\0';
+			while ((savePopPrecedence = topPrecedence(s)) != lparen){
+				while (strcpy(p->element[p->size], printToken(popPrecedence(s))) == NULL);
+				++p->size;
+				// p->element[p->size++][1] = '\0';
 			}
 			popPrecedence(s);		// discard the left parameters
 			token = getTokenPostfix(expr, &symbol, &n);
@@ -280,18 +299,35 @@ void postfix(char *tmp, post *p){
 				if (token == eos){ break; }
 			} p->element[p->size++][k++] = '\0'; k = 0;
 		}
+		else if ((token == lg)){
+			p->element[p->size][k++] = printSymbol(symbol);
+			while (k < 3){
+				token = getTokenPostfix(expr, &symbol, &n);
+				p->element[p->size][k++] = printSymbol(symbol);
+			}
+			while ((token == operand) || (token == dot)){
+				p->element[p->size][k++] = printSymbol(symbol);
+				token = getTokenPostfix(expr, &symbol, &n);
+				if (token == eos){ break; }
+			} p->element[p->size++][k++] = '\0'; k = 0;
+		}
 		else{
-			while (isp[topPrecedence(s)] >= icp[token]){ 
-				p->element[p->size][0] = printToken(popPrecedence(s)); 
-				p->element[p->size++][1] = '\0';
+			while (isp[topPrecedence(s)] >= icp[token]){
+				// strcpy(p->element[p->size], printToken(popPrecedence(s)));
+				while (strcpy(p->element[p->size], printToken(popPrecedence(s))) == NULL);
+				//p->element[p->size][0] = printToken(popPrecedence(s)); 
+				//p->element[p->size++][1] = '\0';
+				++p->size;
 			}
 			pushPrecedence(s, token);
 			token = getTokenPostfix(expr, &symbol, &n);
 		}
 	}
 	while ((token = popPrecedence(s)) != eos){ 
-		p->element[p->size][0] = printToken(token); 
-		p->element[p->size++][1] = '\0';
+		while (strcpy(p->element[p->size], printToken(token)) == NULL);
+		++p->size;
+		//p->element[p->size][0] = printToken(token); 
+		//p->element[p->size++][1] = '\0';
 	}
 	p->element[p->size++][0] = '\0';
 }
@@ -304,6 +340,10 @@ double eval(post *p){
        	while (token != eos){	// char conversion to int
 			if (token == operand){ 
 				op1 = atof(charNum); pushDouble(s, op1); 
+			}
+			else if (token == lg){
+				op1 = popDouble(s);
+				pushDouble(s, log(op1)); break;
 			}
 			else{
 				op2 = popDouble(s); op1 = popDouble(s);
@@ -358,7 +398,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	strcpy(test[2], "441.43+(32.30-3.0/(0.4/9.5))*6.0+123.7"); answer[2] = 331.43;
 	strcpy(test[3], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7"); answer[3] = -798.83;
 	strcpy(test[4], "---1"); answer[4] = -1;
-	strcpy(test[4], "-log(log(441.43))+(-32.30-3.0/(0.4/log(-log(0.01))))*-6.0+-123.7"); answer[4] = 83.2239468134;
+	strcpy(test[5], "-log(log(441.43))+(-32.30-3.0/(0.4/log(-log(0.01))))*-6.0+-123.7"); answer[5] = 83.2239468134;
 
 	for (i = 0; i < TESTNUM; ++i){
 		char *expr = (char*)malloc(MAXNUM * sizeof(char));	// an array of chars for an infix expression
