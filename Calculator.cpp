@@ -27,7 +27,7 @@ typedef enum{ FALSE = 0, TRUE = 1 } Boolean;
 typedef enum{ lparen, rparen, plus, minus, times, divide, eos, lg, negative, operand, space, dot } precedence;
 
 int isp[] = { 0, 19, 12, 12, 13, 13, 0, 15, 14 };
-int icp[] = { 20, 19, 12, 12, 13, 13, 0, 16, 14 };
+int icp[] = { 20, 19, 12, 12, 13, 13, 0, 18, 14 };
 
 typedef struct{
 	int size;
