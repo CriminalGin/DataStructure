@@ -30,10 +30,10 @@ teacher(s).
 
 typedef enum{ FALSE = 0, TRUE = 1 } Boolean;
 
-typedef enum{ lparen, rparen, plus, minus, times, divide, eos, lg, operand, space, dot } precedence;
+typedef enum{ lparen, rparen, plus, minus, times, divide, eos, lg, negative, operand, space, dot } precedence;
 
-int isp[] = { 0, 19, 12, 12, 13, 13, 0, 14 };
-int icp[] = { 20, 19, 12, 12, 13, 13, 0, 14 };
+int isp[] = { 0, 19, 12, 12, 13, 13, 0, 14, 15 };
+int icp[] = { 20, 19, 12, 12, 13, 13, 0, 14, 15 };
 
 typedef struct{
 	int size;
@@ -350,7 +350,7 @@ double eval(post *p){
 			}
 			else if (token == lg){
 				op1 = popDouble(s);
-				pushDouble(s, log(op1)); break;
+				pushDouble(s, log10(op1));
 			}
 			else{
 				op2 = popDouble(s); op1 = popDouble(s);
@@ -406,7 +406,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	strcpy(test[3], "-441.43+(-32.30-3.0/(0.4/-9.5))*-6.0+-123.7"); answer[3] = -798.83;
 	strcpy(test[4], "---1"); answer[4] = -1;
 	// strcpy(test[5], "-log(log(441.43))+(-32.30-3.0/(0.4/log(-log(0.01))))*-6.0+-123.7"); answer[5] = 83.2239468134;
-	strcpy(test[5], "log(log(441.43))+(-32.30-3.0/(0.4/log(log(100))))*-6.0+-123.7"); answer[5] = 83.2239468134;
+	strcpy(test[5], "log(log(441.43))+(-32.30-3.0/(0.4/log(log(100))))*-6.0+-123.7"); answer[5] = 0;
+	// strcpy(test[5], "log(441.43)"); answer[5] = 0;
+
 	// strcpy(test[5], "log(10)"); answer[5] = 83.2239468134;
 
 	for (i = 0; i < TESTNUM; ++i){
